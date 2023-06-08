@@ -6,12 +6,14 @@ class SquareTile extends StatelessWidget {
   final bool isWhite;
   final ChessPiece? piece;
   final bool isSelected;
+  final bool isValidMove;
   void Function()? onTap;
   SquareTile(
       {super.key,
       required this.isWhite,
       required this.piece,
       required this.isSelected,
+      required this.isValidMove,
       required this.onTap});
 
   @override
@@ -20,6 +22,8 @@ class SquareTile extends StatelessWidget {
 
     if (isSelected) {
       squareColor = selectedSquareColor;
+    } else if (isValidMove) {
+      squareColor = Colors.green[300];
     } else {
       squareColor = isWhite ? whiteSquare : blackSquare;
     }
