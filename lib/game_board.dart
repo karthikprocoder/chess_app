@@ -30,6 +30,12 @@ class _GameBoardState extends State<GameBoard> {
   // TURN
   bool isWhiteTurn = true;
 
+  // KING'S POSITION
+  List<int> whiteKingPos = [7, 4];
+  List<int> blackKingPos = [0, 4];
+
+  bool checkStatus = false;
+
   @override
   void initState() {
     super.initState();
@@ -138,7 +144,6 @@ class _GameBoardState extends State<GameBoard> {
           selectedRow = rowNo;
           selecetedCol = colNo;
           selectedPiece = board[rowNo][colNo];
-          validMoves = calculateRawValidMoves(rowNo, colNo, selectedPiece);
         }
       }
 
@@ -151,13 +156,13 @@ class _GameBoardState extends State<GameBoard> {
       } else if (selectedPiece != null &&
           isValidMove(rowNo, colNo, validMoves)) {
         movePiece(rowNo, colNo);
-        validMoves = calculateRawValidMoves(rowNo, colNo, selectedPiece);
       } else {
         selectedPiece = null;
         selectedRow = -1;
         selecetedCol = -1;
         validMoves = [];
       }
+      validMoves = calculateRealValidMoves(rowNo, colNo, selectedPiece, true);
     });
   }
 
@@ -333,6 +338,26 @@ class _GameBoardState extends State<GameBoard> {
     return candidateMoves;
   }
 
+  List<List<int>> calculateRealValidMoves(
+      int row, int col, ChessPiece? piece, bool simulate) {
+    List<List<int>> realValidMoves = [];
+    List<List<int>> candidateMoves = calculateRawValidMoves(row, col, piece);
+
+    if (!simulate) return candidateMoves;
+
+    // simulate the next move
+    for (var move in candidateMoves) {
+      int endRow = move[0];
+      int endCol = move[1];
+
+      if (simulatedMoveIsSafe(piece!, row, col, endRow, endCol)) {
+        realValidMoves.add(move);
+      }
+    }
+
+    return realValidMoves;
+  }
+
   // MOVE THE PIECE
   void movePiece(int newRow, int newCol) {
     // if the new spot has an enemy
@@ -348,7 +373,16 @@ class _GameBoardState extends State<GameBoard> {
     // move the piece and clear the old spot
     board[newRow][newCol] = selectedPiece;
     board[selectedRow][selecetedCol] = null;
+    if (selectedPiece!.type == ChessPieceType.king) {
+      if (selectedPiece!.isWhite) {
+        whiteKingPos = [newRow, newCol];
+      } else {
+        blackKingPos = [newRow, newCol];
+      }
+    }
 
+    //see if the opposite king is in under attack
+    checkStatus = isKingInCheck(!isWhiteTurn);
     // clear the selection
     setState(() {
       selectedPiece = null;
@@ -357,8 +391,120 @@ class _GameBoardState extends State<GameBoard> {
       validMoves = [];
     });
 
+    // check if check mate
+    if (isCheckMate(!isWhiteTurn)) {
+      showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+                title: const Text('Check Mate!'),
+                actions: [
+                  // play again
+                  TextButton(
+                    onPressed: resetGame,
+                    child: Text('Play Again'),
+                  ),
+                ],
+              ));
+    }
     // change turn
     isWhiteTurn = !isWhiteTurn;
+  }
+
+  bool isKingInCheck(bool isWhiteKing) {
+    // get the position of the king
+    List<int> kingPos = (isWhiteKing) ? whiteKingPos : blackKingPos;
+
+    // check if any of the enemy pieces are attacking the king
+    for (int i = 0; i < 8; i++) {
+      for (int j = 0; j < 8; j++) {
+        // skip emtpy and friendly pieces
+        if (board[i][j] == null || board[i][j]!.isWhite == isWhiteKing) {
+          continue;
+        }
+        // opponent
+        List<List<int>> validMoves =
+            calculateRealValidMoves(i, j, board[i][j], false);
+        if (validMoves
+            .any((move) => move[0] == kingPos[0] && move[1] == kingPos[1])) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  bool simulatedMoveIsSafe(
+      ChessPiece piece, int startRow, int startCol, int endRow, int endCol) {
+    // save current board state
+    ChessPiece? originalDestinationPiece = board[endRow][endCol];
+
+    // if the piece is the king, save its current position
+    List<int>? originalKingPosition;
+    if (piece.type == ChessPieceType.king) {
+      // update the king's position
+      if (piece.isWhite) {
+        originalKingPosition = whiteKingPos;
+        whiteKingPos = [endRow, endCol];
+      } else {
+        originalKingPosition = blackKingPos;
+        blackKingPos = [endRow, endCol];
+      }
+    }
+
+    // simulate the move
+    board[endRow][endCol] = piece;
+    board[startRow][startCol] = null;
+
+    // check if our own king is under attack
+    bool isSafeMove = !isKingInCheck(piece.isWhite);
+
+    // restore board to original state
+    board[startRow][startCol] = piece;
+    board[endRow][endCol] = originalDestinationPiece;
+
+    // if piece was the king, restore its original position
+    if (piece.type == ChessPieceType.king) {
+      if (piece.isWhite) {
+        whiteKingPos = originalKingPosition!;
+      } else {
+        blackKingPos = originalKingPosition!;
+      }
+    }
+
+    return isSafeMove;
+  }
+
+  // IS IT CHECKMATE ?
+  bool isCheckMate(bool isWhiteKing) {
+    // if the king is not in check then no checkmate
+    if (!isKingInCheck(isWhiteKing)) return false;
+
+    // atleast one legal move for our king then no checkmate
+    for (int i = 0; i < 8; i++) {
+      for (int j = 0; j < 8; j++) {
+        if (board[i][j] == null || board[i][j]!.isWhite != isWhiteKing) {
+          continue;
+        }
+        if (calculateRealValidMoves(i, j, board[i][j], true).isNotEmpty) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  // RESET GAME
+  void resetGame() {
+    Navigator.pop(context);
+    initializeBoard();
+    setState(() {
+      whiteDeadPieces.clear();
+      blackDeadPieces.clear();
+      whiteKingPos = [7, 4];
+      blackKingPos = [0, 4];
+      checkStatus = false;
+      isWhiteTurn = true;
+    });
   }
 
   @override
@@ -380,6 +526,8 @@ class _GameBoardState extends State<GameBoard> {
                       isWhite: true);
                 }),
           ),
+
+          Text(checkStatus ? 'CHECK' : ''),
           Expanded(
             flex: 3,
             child: GridView.builder(
