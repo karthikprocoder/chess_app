@@ -33,7 +33,11 @@ class SquareTile extends StatelessWidget {
       child: Container(
         color: squareColor,
         margin: EdgeInsets.all(isValidMove ? 2 : 0),
-        child: piece != null ? Image.asset(piece!.imagePath) : null,
+        child: piece != null
+            ? Image.asset(
+                piece!.imagePath,
+              )
+            : null,
       ),
     );
   }
