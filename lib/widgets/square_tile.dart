@@ -19,25 +19,38 @@ class SquareTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Color? squareColor;
-
-    if (isSelected) {
-      squareColor = selectedSquareColor;
-    } else if (isValidMove) {
-      squareColor = Colors.green[300];
-    } else {
-      squareColor = isWhite ? whiteSquare : blackSquare;
-    }
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        color: squareColor,
-        margin: EdgeInsets.all(isValidMove ? 2 : 0),
+        color: !isSelected
+            ? isWhite
+                ? whiteSquare
+                : blackSquare
+            : selectedSquareColor,
         child: piece != null
-            ? Image.asset(
-                piece!.imagePath,
+            ? Container(
+                decoration: !isValidMove
+                    ? null
+                    : BoxDecoration(
+                        shape: BoxShape.circle,
+                        border:
+                            Border.all(color: Colors.grey.shade400, width: 2),
+                      ),
+                child: Image.asset(
+                  piece!.imagePath,
+                ),
               )
-            : null,
+            : isValidMove
+                ? Padding(
+                    padding: const EdgeInsets.all(14.0),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.grey[400],
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  )
+                : null,
       ),
     );
   }

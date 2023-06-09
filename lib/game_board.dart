@@ -260,7 +260,7 @@ class _GameBoardState extends State<GameBoard> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[600],
+      backgroundColor: Colors.grey[400]!.withOpacity(0.6),
       body: Column(
         children: [
           // WHITE DEAD PIECES
