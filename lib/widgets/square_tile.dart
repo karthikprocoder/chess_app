@@ -2,6 +2,7 @@ import 'package:chess_app/global_variables.dart';
 import 'package:chess_app/widgets/piece.dart';
 import 'package:flutter/material.dart';
 
+// ignore: must_be_immutable
 class SquareTile extends StatelessWidget {
   final bool isWhite;
   final ChessPiece? piece;
