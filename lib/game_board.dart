@@ -25,9 +25,6 @@ class _GameBoardState extends State<GameBoard> {
   Duration whiteDuration = gameDuration;
   Duration blackDuration = gameDuration;
 
-  // game timeout
-  bool isTimeOut = false;
-
   // 2d matrix representing a board
   late List<List<ChessPiece?>> board;
 
@@ -45,6 +42,7 @@ class _GameBoardState extends State<GameBoard> {
 
   // TURN
   bool isWhiteTurn = true;
+  bool isPaused = true;
 
   // KING'S POSITION
   List<int> whiteKingPos = [7, 4];
@@ -57,7 +55,7 @@ class _GameBoardState extends State<GameBoard> {
     super.initState();
     board = initializeBoard();
     playAudio("game-start");
-    startTimer(true);
+    // startTimer(true);
   }
 
   @override
@@ -80,7 +78,6 @@ class _GameBoardState extends State<GameBoard> {
         setState(() {
           final sec = whiteDuration.inSeconds - 1;
           if (sec < 0) {
-            isTimeOut = true;
             showWinner("Black", "Timeout");
             whiteTimer!.cancel();
           } else {
@@ -116,12 +113,12 @@ class _GameBoardState extends State<GameBoard> {
 
   // reset both the timers
   void resetTimers({bool restart = true}) {
-    stopTimer(true);
-    stopTimer(false);
     setState(() {
-      whiteDuration = gameDuration;
-      blackDuration = gameDuration;
+      stopTimer(true);
+      stopTimer(false);
       if (restart) {
+        whiteDuration = gameDuration;
+        blackDuration = gameDuration;
         startTimer(true);
       }
     });
@@ -189,6 +186,7 @@ class _GameBoardState extends State<GameBoard> {
 
   // MOVE THE PIECE
   void movePiece(int newRow, int newCol) {
+    if (!isPaused) return;
     bool captured = false;
     // if the new spot has an enemy
     if (board[newRow][newCol] != null) {
@@ -219,7 +217,7 @@ class _GameBoardState extends State<GameBoard> {
       validMoves = [];
     });
 
-    //see if the opposite king is in under attack
+    // see if the opposite king is in under attack
     checkStatus = isKingInCheck(!isWhiteTurn);
 
     // check if check mate
@@ -229,26 +227,27 @@ class _GameBoardState extends State<GameBoard> {
         winner = "Black";
       }
       playAudio("game-end");
-      showWinner(winner, "Checkmate!");
-    }
-
-    // play move audio
-    if (checkStatus) {
-      playAudio("move-check");
-    } else if (captured) {
-      playAudio("capture");
+      resetTimers(restart: false);
+      showWinner(winner, "Checkmate");
     } else {
-      playAudio("move-self");
+      // play move audio
+      if (checkStatus) {
+        playAudio("move-check");
+      } else if (captured) {
+        playAudio("capture");
+      } else {
+        playAudio("move-self");
+      }
+
+      // stop timer for current player
+      stopTimer(isWhiteTurn);
+
+      // start timer for other player
+      startTimer(!isWhiteTurn);
+
+      // change turn
+      isWhiteTurn = !isWhiteTurn;
     }
-
-    // stop timer for current player
-    stopTimer(isWhiteTurn);
-
-    // start timer for other player
-    startTimer(!isWhiteTurn);
-
-    // change turn
-    isWhiteTurn = !isWhiteTurn;
   }
 
   bool isKingInCheck(bool isWhiteKing) {
@@ -354,8 +353,11 @@ class _GameBoardState extends State<GameBoard> {
     });
   }
 
-  // show winner dialog box
+  void pauseGame() {
+    resetTimers(restart: false);
+  }
 
+  // show winner dialog box
   void showWinner(String winner, String winType) {
     showDialog(
       context: context,
@@ -381,6 +383,41 @@ class _GameBoardState extends State<GameBoard> {
     );
   }
 
+  void openMenu() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Menu'),
+        actions: [
+          // back
+          IconButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            icon: const Icon(Icons.arrow_back),
+          ),
+          // new game
+          IconButton(
+            onPressed: () {
+              Navigator.pop(context);
+              resetGame();
+            },
+            icon: const Icon(Icons.restart_alt_rounded),
+          ),
+
+          // pause game
+          IconButton(
+            onPressed: () {
+              Navigator.pop(context);
+              pauseGame();
+            },
+            icon: const Icon(Icons.pause),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     var screenHeight = MediaQuery.of(context).size.height;
@@ -391,13 +428,8 @@ class _GameBoardState extends State<GameBoard> {
           elevation: 0,
           title: const Text('Chess App'),
           actions: [
-            TextButton(
-              onPressed: resetGame,
-              child: const Text(
-                'New Game',
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
+            IconButton(
+                onPressed: openMenu, icon: const Icon(Icons.menu_rounded))
           ],
         ),
         body: Column(
