@@ -289,3 +289,15 @@ List<List<int>> calculateRawValidMoves(
 
   return candidateMoves;
 }
+
+
+  // format duration
+  String formatDuration(Duration duration) {
+    String hh = (duration.inHours).toString().padLeft(2, '0');
+    String mm = (duration.inMinutes % 60).toString().padLeft(2, '0');
+    String ss = (duration.inSeconds % 60).toString().padLeft(2, '0');
+    if (hh == "00") {
+      return '$mm:$ss';
+    }
+    return '$hh:$mm:$ss';
+  }

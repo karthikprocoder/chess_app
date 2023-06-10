@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:audioplayers/audioplayers.dart';
 import 'package:chess_app/global_variables.dart';
 import 'package:chess_app/methods/helper_methods.dart';
@@ -16,6 +18,15 @@ class GameBoard extends StatefulWidget {
 class _GameBoardState extends State<GameBoard> {
   // audio player
   final audioPlayer = AudioPlayer();
+
+  // timer
+  Timer? whiteTimer;
+  Timer? blackTimer;
+  Duration whiteDuration = gameDuration;
+  Duration blackDuration = gameDuration;
+
+  // game timeout
+  bool isTimeOut = false;
 
   // 2d matrix representing a board
   late List<List<ChessPiece?>> board;
@@ -40,11 +51,13 @@ class _GameBoardState extends State<GameBoard> {
   List<int> blackKingPos = [0, 4];
 
   bool checkStatus = false;
-  bool selected = false;
+
   @override
   void initState() {
     super.initState();
     board = initializeBoard();
+    playAudio("game-start");
+    startTimer(true);
   }
 
   @override
@@ -54,10 +67,64 @@ class _GameBoardState extends State<GameBoard> {
   }
 
   // PLAY AUDIO
-  Future setAudio(String audioType) async {
+  Future playAudio(String audioType) async {
     await audioPlayer.setSource(AssetSource('sounds/$audioType.mp3'));
     // debugPrint(audioPlayer.source.toString());
     audioPlayer.play(audioPlayer.source!, volume: 100.0);
+  }
+
+  // start the timer
+  void startTimer(bool isWhiteTurn) {
+    if (isWhiteTurn) {
+      whiteTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+        setState(() {
+          final sec = whiteDuration.inSeconds - 1;
+          if (sec < 0) {
+            isTimeOut = true;
+            showWinner("Black", "Timeout");
+            whiteTimer!.cancel();
+          } else {
+            whiteDuration = Duration(seconds: sec);
+          }
+        });
+      });
+    } else {
+      blackTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+        setState(() {
+          final sec = blackDuration.inSeconds - 1;
+          if (sec < 0) {
+            showWinner("White", "Timeout");
+            blackTimer!.cancel();
+          } else {
+            blackDuration = Duration(seconds: sec);
+          }
+        });
+      });
+    }
+  }
+
+  // pause the timer
+  void stopTimer(bool isWhiteTurn) {
+    setState(() {
+      if (isWhiteTurn) {
+        whiteTimer!.cancel();
+      } else {
+        blackTimer!.cancel();
+      }
+    });
+  }
+
+  // reset both the timers
+  void resetTimers({bool restart = true}) {
+    stopTimer(true);
+    stopTimer(false);
+    setState(() {
+      whiteDuration = gameDuration;
+      blackDuration = gameDuration;
+      if (restart) {
+        startTimer(true);
+      }
+    });
   }
 
   // CALLED WHEN A square_tile IS TAPPED
@@ -161,39 +228,25 @@ class _GameBoardState extends State<GameBoard> {
       if (!isWhiteTurn) {
         winner = "Black";
       }
-      setAudio("game-end");
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text('Check Mate!, $winner wins'),
-          actions: [
-            // play again
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                return resetGame();
-              },
-              child: const Text('Play Again'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text('Back'),
-            ),
-          ],
-        ),
-      );
+      playAudio("game-end");
+      showWinner(winner, "Checkmate!");
     }
 
     // play move audio
     if (checkStatus) {
-      setAudio("move-check");
+      playAudio("move-check");
     } else if (captured) {
-      setAudio("capture");
+      playAudio("capture");
     } else {
-      setAudio("move-self");
+      playAudio("move-self");
     }
+
+    // stop timer for current player
+    stopTimer(isWhiteTurn);
+
+    // start timer for other player
+    startTimer(!isWhiteTurn);
+
     // change turn
     isWhiteTurn = !isWhiteTurn;
   }
@@ -283,14 +336,49 @@ class _GameBoardState extends State<GameBoard> {
 
   // RESET GAME
   void resetGame() {
-    board = initializeBoard();
-    whiteDeadPieces.clear();
-    blackDeadPieces.clear();
-    whiteKingPos = [7, 4];
-    blackKingPos = [0, 4];
-    checkStatus = false;
-    isWhiteTurn = true;
-    setState(() {});
+    setState(() {
+      // variables
+      board = initializeBoard();
+      selectedPiece = null;
+      selectedRow = -1;
+      selecetedCol = -1;
+      validMoves.clear();
+      whiteDeadPieces.clear();
+      blackDeadPieces.clear();
+      whiteKingPos = [7, 4];
+      blackKingPos = [0, 4];
+      checkStatus = false;
+      isWhiteTurn = true;
+      playAudio("game-start");
+      resetTimers();
+    });
+  }
+
+  // show winner dialog box
+
+  void showWinner(String winner, String winType) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('$winType, $winner wins'),
+        actions: [
+          // play again
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              return resetGame();
+            },
+            child: const Text('Play Again'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: const Text('Back'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -332,10 +420,23 @@ class _GameBoardState extends State<GameBoard> {
                   }),
             ),
 
-            Container(
-              color: Colors.purple,
-              height: screenHeight * 0.05,
-              child: Text(checkStatus ? 'CHECK!' : ''),
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 25.0, vertical: 8.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    // color: Colors.purple,
+                    // height: screenHeight * 0.05,
+                    child: Text(checkStatus ? 'CHECK!' : 'player 2'),
+                  ),
+                  Container(
+                    // color: Colors.pink,
+                    child: Text(formatDuration(blackDuration)),
+                  ),
+                ],
+              ),
             ),
             Container(
               color: Colors.amber,
@@ -357,6 +458,22 @@ class _GameBoardState extends State<GameBoard> {
                       onTap: () => selectPiece(rowNo, colNo),
                     );
                   }),
+            ),
+
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 25.0, vertical: 8.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    child: Text('player 1'),
+                  ),
+                  Container(
+                    child: Text(formatDuration(whiteDuration)),
+                  ),
+                ],
+              ),
             ),
 
             // BLACK DEAD PIECES
