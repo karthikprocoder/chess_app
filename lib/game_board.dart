@@ -54,8 +54,6 @@ class _GameBoardState extends State<GameBoard> {
   void initState() {
     super.initState();
     board = initializeBoard();
-    playAudio("game-start");
-    // startTimer(true);
   }
 
   @override
@@ -103,9 +101,9 @@ class _GameBoardState extends State<GameBoard> {
   // pause the timer
   void stopTimer(bool isWhiteTurn) {
     setState(() {
-      if (isWhiteTurn) {
+      if (isWhiteTurn && whiteTimer != null) {
         whiteTimer!.cancel();
-      } else {
+      } else if (blackTimer != null) {
         blackTimer!.cancel();
       }
     });
@@ -147,7 +145,9 @@ class _GameBoardState extends State<GameBoard> {
       }
 
       // select the end square to move the piece
-      else if (selectedPiece != null && isValidMove(rowNo, colNo, validMoves)) {
+      else if (selectedPiece != null &&
+          isValidMove(rowNo, colNo, validMoves) &&
+          !isPaused) {
         movePiece(rowNo, colNo);
       }
       // clear selection
@@ -186,7 +186,6 @@ class _GameBoardState extends State<GameBoard> {
 
   // MOVE THE PIECE
   void movePiece(int newRow, int newCol) {
-    if (!isPaused) return;
     bool captured = false;
     // if the new spot has an enemy
     if (board[newRow][newCol] != null) {
@@ -209,6 +208,7 @@ class _GameBoardState extends State<GameBoard> {
         blackKingPos = [newRow, newCol];
       }
     }
+    debugPrint("reached");
     // clear the selection
     setState(() {
       selectedPiece = null;
@@ -226,6 +226,7 @@ class _GameBoardState extends State<GameBoard> {
       if (!isWhiteTurn) {
         winner = "Black";
       }
+      isPaused = true;
       playAudio("game-end");
       resetTimers(restart: false);
       showWinner(winner, "Checkmate");
@@ -334,7 +335,7 @@ class _GameBoardState extends State<GameBoard> {
   }
 
   // RESET GAME
-  void resetGame() {
+  void resetGame({bool start = false}) {
     setState(() {
       // variables
       board = initializeBoard();
@@ -348,12 +349,19 @@ class _GameBoardState extends State<GameBoard> {
       blackKingPos = [0, 4];
       checkStatus = false;
       isWhiteTurn = true;
-      playAudio("game-start");
-      resetTimers();
+      if (start) {
+        isPaused = false;
+        playAudio("game-start");
+        resetTimers(restart: true);
+      } else {
+        isPaused = true;
+        resetTimers(restart: false);
+      }
     });
   }
 
   void pauseGame() {
+    isPaused = true;
     resetTimers(restart: false);
   }
 
@@ -439,7 +447,7 @@ class _GameBoardState extends State<GameBoard> {
             // WHITE DEAD PIECES
             Container(
               height: screenHeight * 0.10,
-              color: Colors.red,
+              // color: Colors.red,
               child: GridView.builder(
                   physics: const NeverScrollableScrollPhysics(),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -461,7 +469,10 @@ class _GameBoardState extends State<GameBoard> {
                   Container(
                     // color: Colors.purple,
                     // height: screenHeight * 0.05,
-                    child: Text(checkStatus ? 'CHECK!' : 'player 2'),
+                    child: const Text('player 2'),
+                  ),
+                  Container(
+                    child: Text(checkStatus ? 'Check!' : ''),
                   ),
                   Container(
                     // color: Colors.pink,
@@ -471,7 +482,7 @@ class _GameBoardState extends State<GameBoard> {
               ),
             ),
             Container(
-              color: Colors.amber,
+              // color: Colors.amber,
               height: screenHeight * 0.50,
               child: GridView.builder(
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -510,7 +521,7 @@ class _GameBoardState extends State<GameBoard> {
 
             // BLACK DEAD PIECES
             Container(
-              color: Colors.blue,
+              // color: Colors.blue,
               height: screenHeight * 0.10,
               child: GridView.builder(
                   physics: const NeverScrollableScrollPhysics(),
@@ -523,6 +534,18 @@ class _GameBoardState extends State<GameBoard> {
                         isWhite: false);
                   }),
             ),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                ElevatedButton(
+                  onPressed:
+                      isPaused ? () => resetGame(start: true) : pauseGame,
+                  child: Text(isPaused ? 'Start Game' : 'Pause'),
+                ),
+              ],
+            )
           ],
         ),
       ),
