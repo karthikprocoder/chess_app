@@ -1,3 +1,5 @@
+import 'package:audioplayers/audioplayers.dart';
+import 'package:chess_app/global_variables.dart';
 import 'package:chess_app/methods/helper_methods.dart';
 import 'package:chess_app/widgets/dead_piece.dart';
 import 'package:chess_app/widgets/piece.dart';
@@ -12,6 +14,9 @@ class GameBoard extends StatefulWidget {
 }
 
 class _GameBoardState extends State<GameBoard> {
+  // audio player
+  final audioPlayer = AudioPlayer();
+
   // 2d matrix representing a board
   late List<List<ChessPiece?>> board;
 
@@ -35,11 +40,24 @@ class _GameBoardState extends State<GameBoard> {
   List<int> blackKingPos = [0, 4];
 
   bool checkStatus = false;
-
+  bool selected = false;
   @override
   void initState() {
     super.initState();
     board = initializeBoard();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    audioPlayer.dispose();
+  }
+
+  // PLAY AUDIO
+  Future setAudio(String audioType) async {
+    await audioPlayer.setSource(AssetSource('sounds/$audioType.mp3'));
+    // debugPrint(audioPlayer.source.toString());
+    audioPlayer.play(audioPlayer.source!, volume: 100.0);
   }
 
   // CALLED WHEN A square_tile IS TAPPED
@@ -104,8 +122,10 @@ class _GameBoardState extends State<GameBoard> {
 
   // MOVE THE PIECE
   void movePiece(int newRow, int newCol) {
+    bool captured = false;
     // if the new spot has an enemy
     if (board[newRow][newCol] != null) {
+      captured = true;
       // add the captured piece to the dead list
       if (board[newRow][newCol]!.isWhite) {
         whiteDeadPieces.add(board[newRow][newCol]!);
@@ -124,9 +144,6 @@ class _GameBoardState extends State<GameBoard> {
         blackKingPos = [newRow, newCol];
       }
     }
-
-    //see if the opposite king is in under attack
-    checkStatus = isKingInCheck(!isWhiteTurn);
     // clear the selection
     setState(() {
       selectedPiece = null;
@@ -135,12 +152,16 @@ class _GameBoardState extends State<GameBoard> {
       validMoves = [];
     });
 
+    //see if the opposite king is in under attack
+    checkStatus = isKingInCheck(!isWhiteTurn);
+
     // check if check mate
     if (isCheckMate(!isWhiteTurn)) {
       String winner = "White";
       if (!isWhiteTurn) {
         winner = "Black";
       }
+      setAudio("game-end");
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
@@ -154,9 +175,24 @@ class _GameBoardState extends State<GameBoard> {
               },
               child: const Text('Play Again'),
             ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Back'),
+            ),
           ],
         ),
       );
+    }
+
+    // play move audio
+    if (checkStatus) {
+      setAudio("move-check");
+    } else if (captured) {
+      setAudio("capture");
+    } else {
+      setAudio("move-self");
     }
     // change turn
     isWhiteTurn = !isWhiteTurn;
@@ -259,60 +295,87 @@ class _GameBoardState extends State<GameBoard> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[400]!.withOpacity(0.6),
-      body: Column(
-        children: [
-          // WHITE DEAD PIECES
-          Expanded(
-            child: GridView.builder(
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 8),
-                itemCount: whiteDeadPieces.length,
-                itemBuilder: (context, index) {
-                  return DeadPiece(
-                      imagePath: whiteDeadPieces[index].imagePath,
-                      isWhite: true);
-                }),
-          ),
+    var screenHeight = MediaQuery.of(context).size.height;
+    return SafeArea(
+      child: Scaffold(
+        backgroundColor: backgroundColor,
+        appBar: AppBar(
+          elevation: 0,
+          title: const Text('Chess App'),
+          actions: [
+            TextButton(
+              onPressed: resetGame,
+              child: const Text(
+                'New Game',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+        body: Column(
+          mainAxisSize: MainAxisSize.max,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // WHITE DEAD PIECES
+            Container(
+              height: screenHeight * 0.10,
+              color: Colors.red,
+              child: GridView.builder(
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 16),
+                  itemCount: whiteDeadPieces.length,
+                  itemBuilder: (context, index) {
+                    return DeadPiece(
+                        imagePath: whiteDeadPieces[index].imagePath,
+                        isWhite: true);
+                  }),
+            ),
 
-          Text(checkStatus ? 'CHECK' : ''),
-          Expanded(
-            flex: 3,
-            child: GridView.builder(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 8),
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: 64,
-                itemBuilder: (context, index) {
-                  int rowNo = index ~/ 8;
-                  int colNo = index % 8;
+            Container(
+              color: Colors.purple,
+              height: screenHeight * 0.05,
+              child: Text(checkStatus ? 'CHECK!' : ''),
+            ),
+            Container(
+              color: Colors.amber,
+              height: screenHeight * 0.50,
+              child: GridView.builder(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 8),
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: 64,
+                  itemBuilder: (context, index) {
+                    int rowNo = index ~/ 8;
+                    int colNo = index % 8;
 
-                  return SquareTile(
-                    isWhite: isWhite(index),
-                    piece: board[rowNo][colNo],
-                    isSelected: selectedRow == rowNo && selecetedCol == colNo,
-                    isValidMove: isValidMove(rowNo, colNo, validMoves),
-                    onTap: () => selectPiece(rowNo, colNo),
-                  );
-                }),
-          ),
+                    return SquareTile(
+                      isWhite: isWhite(index),
+                      piece: board[rowNo][colNo],
+                      isSelected: selectedRow == rowNo && selecetedCol == colNo,
+                      isValidMove: isValidMove(rowNo, colNo, validMoves),
+                      onTap: () => selectPiece(rowNo, colNo),
+                    );
+                  }),
+            ),
 
-          // BLACK DEAD PIECES
-          Expanded(
-            child: GridView.builder(
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 8),
-                itemCount: blackDeadPieces.length,
-                itemBuilder: (context, index) {
-                  return DeadPiece(
-                      imagePath: blackDeadPieces[index].imagePath,
-                      isWhite: false);
-                }),
-          ),
-        ],
+            // BLACK DEAD PIECES
+            Container(
+              color: Colors.blue,
+              height: screenHeight * 0.10,
+              child: GridView.builder(
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 16),
+                  itemCount: blackDeadPieces.length,
+                  itemBuilder: (context, index) {
+                    return DeadPiece(
+                        imagePath: blackDeadPieces[index].imagePath,
+                        isWhite: false);
+                  }),
+            ),
+          ],
+        ),
       ),
     );
   }

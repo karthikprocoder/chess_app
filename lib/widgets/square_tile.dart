@@ -45,7 +45,7 @@ class SquareTile extends StatelessWidget {
                     padding: const EdgeInsets.all(14.0),
                     child: Container(
                       decoration: BoxDecoration(
-                        color: Colors.grey[400],
+                        color: Colors.grey[400]!.withOpacity(0.5),
                         shape: BoxShape.circle,
                       ),
                     ),
