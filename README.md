@@ -1,16 +1,13 @@
 # chess_app
+This is an offline chess mobile app made using flutter and dart
 
-A new Flutter project.
+## Features of the app
+- Highlighting the selected piece.
+- Shows valid moves for a selected piece
+- Game is in Blitz format, that is the timer countdown for each player is 5 minutes.
+- Pause and Continue the game in between.
+- Sound Effects for moving the piece, check, checkmate, timeout and when a new game starts.
 
-## Getting Started
-
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Features yet to add 
+- some additional color themes and sound effects.
+- Make this a multiplayer online game using node.js and mongodb
