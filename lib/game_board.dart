@@ -43,6 +43,7 @@ class _GameBoardState extends State<GameBoard> {
   // TURN
   bool isWhiteTurn = true;
   bool isPaused = true;
+  bool gameStarted = false;
 
   // KING'S POSITION
   List<int> whiteKingPos = [7, 4];
@@ -114,9 +115,9 @@ class _GameBoardState extends State<GameBoard> {
     setState(() {
       stopTimer(true);
       stopTimer(false);
+      whiteDuration = gameDuration;
+      blackDuration = gameDuration;
       if (restart) {
-        whiteDuration = gameDuration;
-        blackDuration = gameDuration;
         startTimer(true);
       }
     });
@@ -227,8 +228,10 @@ class _GameBoardState extends State<GameBoard> {
         winner = "Black";
       }
       isPaused = true;
+      gameStarted = false;
       playAudio("game-end");
-      resetTimers(restart: false);
+      stopTimer(true);
+      stopTimer(false);
       showWinner(winner, "Checkmate");
     } else {
       // play move audio
@@ -350,10 +353,12 @@ class _GameBoardState extends State<GameBoard> {
       checkStatus = false;
       isWhiteTurn = true;
       if (start) {
+        gameStarted = true;
         isPaused = false;
         playAudio("game-start");
         resetTimers(restart: true);
       } else {
+        gameStarted = false;
         isPaused = true;
         resetTimers(restart: false);
       }
@@ -362,7 +367,14 @@ class _GameBoardState extends State<GameBoard> {
 
   void pauseGame() {
     isPaused = true;
-    resetTimers(restart: false);
+    stopTimer(true);
+    stopTimer(false);
+  }
+
+  void continueGame() {
+    print('continue');
+    isPaused = false;
+    startTimer(isWhiteTurn);
   }
 
   // show winner dialog box
@@ -436,16 +448,25 @@ class _GameBoardState extends State<GameBoard> {
           elevation: 0,
           title: const Text('Chess App'),
           actions: [
-            IconButton(
-                onPressed: openMenu, icon: const Icon(Icons.menu_rounded))
+            TextButton(
+              onPressed: resetGame,
+              child: const Text(
+                'New Game',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
           ],
         ),
         body: Column(
           mainAxisSize: MainAxisSize.max,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            const SizedBox(
+              height: 20,
+            ),
             // WHITE DEAD PIECES
             Container(
+              alignment: Alignment.bottomLeft,
               height: screenHeight * 0.10,
               // color: Colors.red,
               child: GridView.builder(
@@ -540,9 +561,16 @@ class _GameBoardState extends State<GameBoard> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 ElevatedButton(
-                  onPressed:
-                      isPaused ? () => resetGame(start: true) : pauseGame,
-                  child: Text(isPaused ? 'Start Game' : 'Pause'),
+                  onPressed: isPaused
+                      ? !gameStarted
+                          ? () => resetGame(start: true)
+                          : continueGame
+                      : pauseGame,
+                  child: Text(isPaused
+                      ? !gameStarted
+                          ? 'Start Game'
+                          : 'Continue'
+                      : 'Pause'),
                 ),
               ],
             )
