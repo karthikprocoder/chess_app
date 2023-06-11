@@ -7,4 +7,4 @@ Color? selectedSquareColor = const Color(0xffa2d2df);
 // Color? attackedSquareColor = const Color(0xffFA8072);  // red shade
 
 // each player gets 5 mins
-Duration gameDuration = const Duration(minutes: 5); 
+Duration gameDuration = const Duration(minutes: 5);

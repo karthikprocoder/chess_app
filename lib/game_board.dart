@@ -372,7 +372,6 @@ class _GameBoardState extends State<GameBoard> {
   }
 
   void continueGame() {
-    print('continue');
     isPaused = false;
     startTimer(isWhiteTurn);
   }
@@ -388,9 +387,9 @@ class _GameBoardState extends State<GameBoard> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              return resetGame();
+              return resetGame(start: false);
             },
-            child: const Text('Play Again'),
+            child: const Text('New Game'),
           ),
           TextButton(
             onPressed: () {
