@@ -1,6 +1,6 @@
 # chess_app
-This is an offline chess mobile app made using flutter and dart
-
+This is an offline chess mobile app made using flutter and dart. <br>
+[Click here](https://karthikprocoder.github.io/chess_web_app/#/) to play the game.
 ## Features of the app
 
 - Highlighting the selected piece.
